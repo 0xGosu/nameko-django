@@ -9,21 +9,21 @@ python:
 addons:
   apt_packages:
   - libenchant-dev
+install:
+- pip install tox-travis virtualenv tox python-coveralls coveralls
 cache:
   directories:
   - "$HOME/.cache/pip"
+script:
+- QUIET=true tox
 stages:
 - test
 - deploy
 jobs:
   include:
   - stage: test
-    script:
-      - QUIET=true tox
-    install:
-      - pip install tox-travis virtualenv tox python-coveralls coveralls
     after_success:
-      - coveralls
+    - coveralls
   - stage: deploy
     python: 2.7
     script: skip
