@@ -1,0 +1,5 @@
+django==1.11.*
+nameko==2.11.*
+msgpack==0.5.*
+tox==3.13.*
+flake8
