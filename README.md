@@ -1,3 +1,11 @@
+# django-nameko
+
+## Travis-CI  [![Coverage Status](https://coveralls.io/repos/github/tranvietanh1991/nameko-django/badge.svg)](https://coveralls.io/github/tranvietanh1991/nameko-django)
+| Branch  | Build status                             |
+| ------- | ---------------------------------------- |
+| master  | [![Build Status](https://travis-ci.org/tranvietanh1991/nameko-django.svg?branch=master)](https://travis-ci.org/tranvietanh1991/nameko-django) |
+| develop | [![Build Status](https://travis-ci.org/tranvietanh1991/nameko-django.svg?branch=develop)](https://travis-ci.org/tranvietanh1991/nameko-django) |
+
 # nameko-django
 Django intergration for nameko microservice framework
 
@@ -10,19 +18,20 @@ serializer: 'django_msgpackpickle'
 ACCEPT: ['msgpack', 'django_msgpackpickle']
 SERIALIZERS:
   msgpack:
-    encoder: 'msgpack.dumps'
+    encoder: 'nameko_django.serializer.dumps'
     decoder: 'nameko_django.serializer.loads'
     content_type: 'application/x-msgpack'
     content_encoding: 'binary'
 ```
 
-In order to migrate an existing microservices stack to use this new serializer first install and setup all project
+In order to migrate an existing microservices stack (that use `msgpack` serializer) to use this new serializer 
+first install and setup all project
 ```yaml
 serializer: 'msgpack'
 ACCEPT: ['msgpack', 'django_msgpackpickle']
 SERIALIZERS:
   msgpack:
-    encoder: 'msgpack.dumps'
+    encoder: 'nameko_django.serializer.pack'
     decoder: 'nameko_django.serializer.loads'
     content_type: 'application/x-msgpack'
     content_encoding: 'binary'
