@@ -122,6 +122,11 @@ datetime_test_re = re.compile(
     r'|[-+]?P\d*D?T\d*H?\d*M?\d*S?'  # duration ISO_8601
 )
 
+django_orm_re = re.compile(r"<([\w]+\.[\w]+)\.(\d+)>")
+django_orm_queryset_re = re.compile(r"\s*\(([\w]+\.[\w]+):\s*(.+)\)", re.MULTILINE)
+
+from django.apps import apps
+
 
 def decode_single_object(obj):
     if obj is None:
@@ -146,6 +151,15 @@ def decode_single_object(obj):
         # if there is a datetime_obj can be decoded from string then return it
         if datetime_obj is not None:
             return datetime_obj
+        # check django orm evaluation from string
+        m = django_orm_re.match(obj)
+        if m:
+            return apps.get_model(m.group(1)).objects.get(pk=m.group(2))
+        m2 = django_orm_queryset_re.match(obj)
+        if m2:
+            model = apps.get_model(m2.group(1))
+            raw_id_qs = "SELECT id FROM {} WHERE {}".format(model._meta.db_table, m2.group(2).strip())
+            return model.objects.filter(id__in=[o.id for o in model.objects.raw(raw_id_qs)])
     return obj
 
 
@@ -157,7 +171,11 @@ def dumps(o):
 def loads(s):
     if not isinstance(s, string_types):
         s = bytes(s)
-    return unpackb(s, ext_hook=django_ext_hook, object_hook=decode_dict_object, list_hook=decode_list_object, raw=False)
+    r = unpackb(s, ext_hook=django_ext_hook, object_hook=decode_dict_object, list_hook=decode_list_object, raw=False)
+    if isinstance(r, string_types):
+        return decode_single_object(r)
+    else:
+        return r
 
 
 register_args = (dumps, loads, 'application/x-django-msgpackpickle', 'binary')

@@ -7,7 +7,7 @@
 #  Created by vincenttran on 2019-09-02.
 #  Copyright (c) 2019 bentodatabase. All rights reserved.
 #
-import os
+import os, sys
 
 from os import path
 
@@ -19,6 +19,9 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'nameko_djang
     __version__ = f.read()
 
 from setuptools import setup
+
+needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
+pytest_runner = ['pytest-runner==5.1'] if needs_pytest else []
 
 setup(
     name='nameko-django',
@@ -40,8 +43,10 @@ setup(
         'msgpack>=0.5.0',
         'aenum>=2.1.0'
     ],
+    setup_requires=[
+                   ] + pytest_runner,
     test_suite='nose.collector',
-    tests_require=['nose'],
+    tests_require=['nose==1.3.7', 'pytest==4.6.6', 'pytest-django==3.6.0'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',

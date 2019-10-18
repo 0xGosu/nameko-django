@@ -11,18 +11,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import django
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 from mock import call, patch
-
+import pytest
 from nameko_django.serializer import dumps, loads
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 from aenum import Enum, IntEnum, Constant
 from collections import namedtuple
 from django.utils.timezone import FixedOffset
+from nose import tools
+from django.db.models import ObjectDoesNotExist
 
 
 def test_simple_list():
@@ -190,9 +191,8 @@ DJANGO_DEFAULT_SETTING = dict(
     DEFAULT_INDEX_TABLESPACE='indexes',
     LOGGING={},
 )
-settings.configure(**DJANGO_DEFAULT_SETTING)
 
-django.setup()
+settings.configure(**DJANGO_DEFAULT_SETTING)
 
 
 def test_django_orm():
@@ -215,3 +215,61 @@ def test_django_orm_queryset():
     logger.debug("new_qs=%s", qs2)
     assert qs1.model._meta.db_table == qs2.model._meta.db_table
     assert str(qs1) == str(qs2)
+
+
+@pytest.mark.django_db
+def test_django_orm_with_db(admin_user):
+    enc_data = dumps(admin_user)
+    dec_data = loads(enc_data)
+    logger.debug("admin_user=%s", admin_user)
+    assert dec_data.username == admin_user.username
+    assert dec_data.email == admin_user.email
+
+
+@pytest.mark.django_db
+def test_django_orm_eval_with_db(admin_user):
+    enc_data = dumps(['<auth.User.{}>'.format(admin_user.id), admin_user])
+    dec_data = loads(enc_data)
+    u, u1 = dec_data
+    logger.debug("admin_user.id=%s", admin_user.id)
+    assert u.username == u1.username == admin_user.username
+    assert u.email == u1.email == admin_user.email
+
+
+@pytest.mark.django_db
+def test_django_orm_eval_with_db2():
+    enc_data = dumps('<auth.User.2>')
+    with tools.assert_raises(ObjectDoesNotExist):
+        loads(enc_data)
+
+
+@pytest.mark.django_db
+def test_django_orm_queryset_with_db():
+    from django.contrib.auth.models import User
+    test_user_qs = User.objects.all().filter(last_login__isnull=False, id__gt=1000, date_joined__gt=datetime.now())
+    enc_data = dumps(test_user_qs)
+    dec_data = loads(enc_data)
+    qs1 = test_user_qs.query
+    qs2 = dec_data.query
+    assert qs1.model._meta.db_table == qs2.model._meta.db_table
+    assert str(qs1) == str(qs2)
+
+
+@pytest.mark.django_db
+def test_django_orm_queryset_eval_with_db(admin_user):
+    from django.contrib.auth.models import User
+    test_user_qs = User.objects.all().filter(id__gte=1,  # last_login__isnull=False,
+                                             date_joined__gt='2018-11-22 00:47:14.263837')
+    qs_string = '(auth.User: {})'.format("id >= 1 and date_joined > '2018-11-22 00:47:14.263837'")
+    logger.debug(qs_string)
+    enc_data = dumps(qs_string)
+    dec_data = loads(enc_data)
+    qs1 = test_user_qs.query
+    qs2 = dec_data.query
+    logger.debug("qs1=%s", qs1)
+    logger.debug("qs2=%s", qs2)
+    assert len(test_user_qs) == 1 == dec_data.count()
+    assert list(test_user_qs) == list(dec_data)
+    u = dec_data.first()
+    assert u.username == admin_user.username
+    assert u.email == admin_user.email

@@ -38,3 +38,26 @@ SERIALIZERS:
 ```
 This will accept both of the `msgpack` and `django_msgpackpickle` but only output of result portfolio using `msgpack`
 Once all service migrated, then switch to the first configuration
+
+## Features
+### This serializer will automatically encode and decode: 
+- DateTime, Date, Time, Duration: 
+    object will be converted to string representation compatible with django.utils.dateparse 
+    and convert back using django.utils.dateparse()
+- Decimal:
+    object will be converted to byte string and then recover back to Decimal
+- Django ORM instance:
+    object will be pickled using python cPickle/pickle library and depickled back to ORM Model instance
+- Django ORM queryset:
+    object will be deform to Model + Query then pickled to avoid sending a list of instance
+
+### String evaluation
+This serializer can evaluate string that is compatible with `django.utils.dateparse` format 
+and auto convert the string to either `DateTime`, `Date`, `Time`, `Duration` object.
+
+Also it can evaluate string with format like this:
+`"<app_name.model_name.ID>"`  this will be converted to an ORM instance: using `Model.objects.get(pk=ID)`
+For example: `<auth.User.1>`
+
+`"(app_name.model_name: RAW_QUERY_WITHOUT_SELECT_FROM)"` this will be converted to an ORM queryset
+For example: `(auth.User: id >= 1 and date_joined > '2018-11-22 00:47:14.263837')`
