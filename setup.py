@@ -37,7 +37,8 @@ setup(
     install_requires=[
         'nameko>=2.11.0',
         'django>=1.10',
-        'msgpack>=0.5.0'
+        'msgpack>=0.5.0',
+        'aenum>=2.1.0'
     ],
     test_suite='nose.collector',
     tests_require=['nose'],

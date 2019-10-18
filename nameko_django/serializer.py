@@ -9,118 +9,32 @@
 #
 from __future__ import unicode_literals
 
-import os
-from datetime import datetime
-from decimal import Decimal
-from io import BytesIO
-
-from aenum import Enum
+from datetime import datetime, date, time, timedelta
+from decimal import Decimal, ROUND_HALF_EVEN, Context, Overflow, DivisionByZero, InvalidOperation
+from aenum import Enum, IntEnum, Constant
 from django.db.models import Model, QuerySet
 from django.db.models.base import ModelBase
 from django.db.models.sql.query import Query
 from django.utils import dateparse
-from msgpack import packb, unpackb
-from six import string_types
+from msgpack import packb, unpackb, ExtType
+from six import string_types, ensure_str, ensure_binary
+import re
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
 
-DEFAULT_DATETIME_TIMEZONE_STRING_FORMAT = os.getenv("DEFAULT_DATETIME_TIMEZONE_STRING_FORMAT", "%Y-%m-%d %H:%M:%S.%f%z")
+import logging
 
+logger = logging.getLogger(__name__)
 
-def serializable(obj):
-    """ Make an object serializable for JSON, msgpack
-
-    :param obj: Namedtuple instance
-    :return:
-    """
-    if obj is None:
-        return
-    if hasattr(obj, '_asdict') and callable(obj._asdict):
-        result_obj = dict(obj._asdict())
-    elif isinstance(obj, Enum) and hasattr(obj, 'value'):
-        return obj.value
-    elif isinstance(obj, Decimal):
-        return float(obj)
-    elif isinstance(obj, datetime):
-        return obj.strftime(DEFAULT_DATETIME_TIMEZONE_STRING_FORMAT)
-    else:
-        dump_obj = django_pickle_dumps(obj)
-        if dump_obj is not None:
-            return dump_obj
-        else:
-            result_obj = obj
-
-    if isinstance(result_obj, dict):
-        return {
-            key: serializable(value)
-            for key, value in result_obj.items()
-        }
-    elif isinstance(result_obj, list) or isinstance(result_obj, set) or isinstance(result_obj, tuple):
-        return [serializable(value) for value in result_obj]
-    else:
-        return result_obj
-
-
-def django_is_pickable(s):
-    if isinstance(s, string_types) and len(s) > 255 and s[:2] == b'\x80\x02' and s[-1] == b'.':
-        return True
-    return False
-
-
-def django_pickle_dumps(obj):
-    if isinstance(obj, Model):
-        return pickle.dumps(obj, -1)
-    elif isinstance(obj, QuerySet):
-        return pickle.dumps((obj.model, obj.query), -1)
-    else:
-        return None
-
-
-def django_pickle_loads(obj_string):
-    objs = pickle.loads(obj_string)
-    if isinstance(objs, tuple) and len(objs) == 2:
-        # untouched queryset case
-        model, query = objs
-        if isinstance(model, ModelBase) and isinstance(query, Query):
-            qs = model.objects.all()
-            qs.query = query
-            return qs
-    # normal case
-    return objs
-
-
-def deserializable(obj):
-    """ Make an object serializable for JSON, msgpack
-
-    :param obj: Namedtuple instance
-    :return:
-    """
-    if obj is None:
-        return
-    if isinstance(obj, string_types):
-        if django_is_pickable(obj):
-            dump_obj = django_pickle_loads(obj)
-        else:
-            dump_obj = dateparse.parse_datetime(obj)
-        if dump_obj is not None:
-            return dump_obj
-        else:
-            result_obj = obj
-    else:
-        result_obj = obj
-
-    if isinstance(result_obj, dict):
-        return {
-            key: deserializable(value)
-            for key, value in result_obj.items()
-        }
-    elif isinstance(result_obj, list) or isinstance(result_obj, set) or isinstance(result_obj, tuple):
-        return [deserializable(value) for value in result_obj]
-    else:
-        return result_obj
+DEFAULT_DATE_STRING_FORMAT = "%Y-%m-%d"
+DEFAULT_TIME_STRING_FORMAT = "%H:%M:%S.%f"
+DEFAULT_DATETIME_TIMEZONE_STRING_FORMAT = "%Y-%m-%d %H:%M:%S.%f%z"
+DEFAULT_DECIMAL_CONTEXT = Context(prec=28, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999,
+                                  capitals=1, flags=[], traps=[Overflow, DivisionByZero,
+                                                               InvalidOperation])
 
 
 def pack(s):
@@ -131,14 +45,119 @@ def unpack(s):
     return unpackb(s, raw=False)
 
 
+class ExternalType(IntEnum):
+    DECIMAL = 42
+    ORM_INSTANCE = 43
+    ORM_QUERYSET = 44
+
+
+def encode_nondefault_object(obj):
+    """ Encode an object by make it compatible with default msgpack encoder or using ExtType
+
+    :param obj: any objet
+    :return:
+    """
+    if obj is None:
+        return
+    if hasattr(obj, '_asdict') and callable(obj._asdict):
+        return dict(obj._asdict())
+    elif isinstance(obj, Enum) and hasattr(obj, 'value'):
+        return obj.value
+    elif isinstance(obj, Constant) and hasattr(obj, '_value_'):
+        return obj._value_
+    elif isinstance(obj, Decimal):
+        return ExtType(ExternalType.DECIMAL, ensure_binary(str(obj)))
+    elif isinstance(obj, datetime):
+        return obj.strftime(DEFAULT_DATETIME_TIMEZONE_STRING_FORMAT)
+    elif isinstance(obj, date):
+        return obj.strftime(DEFAULT_DATE_STRING_FORMAT)
+    elif isinstance(obj, time):
+        return obj.strftime(DEFAULT_TIME_STRING_FORMAT)
+    elif isinstance(obj, timedelta):
+        if 0 <= obj.total_seconds() < 86400:
+            return '+{}'.format(obj)
+        return str(obj)
+    else:
+        if isinstance(obj, Model):
+            return ExtType(ExternalType.ORM_INSTANCE, pickle.dumps(obj, -1))
+        elif isinstance(obj, QuerySet):
+            return ExtType(ExternalType.ORM_QUERYSET, pickle.dumps((obj.model, obj.query), -1))
+    logger.debug("unknown type obj=%s", obj)
+    return obj
+
+
+def django_ext_hook(code, data):
+    if code == ExternalType.DECIMAL:
+        return Decimal(ensure_str(data, encoding='utf-8'), context=DEFAULT_DECIMAL_CONTEXT)
+    elif code == ExternalType.ORM_INSTANCE:
+        return pickle.loads(data)
+    elif code == ExternalType.ORM_QUERYSET:
+        # untouched queryset case
+        model, query = pickle.loads(data)
+        if isinstance(model, ModelBase) and isinstance(query, Query):
+            qs = model.objects.all()
+            qs.query = query
+            return qs
+    # unable to decode external type then return as it is
+    return ExtType(code, data)
+
+
+def decode_dict_object(dict_obj):
+    logger.debug("decode dict obj=%s", dict_obj)
+    return {
+        key: decode_single_object(value)
+        for key, value in dict_obj.items()
+    }
+
+
+def decode_list_object(list_obj):
+    logger.debug("decode list obj=%s", list_obj)
+    return [decode_single_object(value) for value in list_obj]
+
+
+datetime_test_re = re.compile(
+    r'[-+.:0123456789]*:[-+.:0123456789]+'  # datetime
+    r'|\d+\-\d+\-\d+'  # date
+    r'|[-+]?\d+\s+days?,?\s*[.:0123456789]*'  # duration
+    r'|[-+]?P\d*D?T\d*H?\d*M?\d*S?'  # duration ISO_8601
+)
+
+
+def decode_single_object(obj):
+    if obj is None:
+        return
+    logger.debug("decode single obj=%s", obj)
+    if isinstance(obj, string_types):
+        datetime_obj = None
+        lenobj = len(obj)
+        if lenobj <= 33 and datetime_test_re.match(obj):
+            if lenobj == 33:
+                datetime_obj = dateparse.parse_datetime(obj.replace(' +', '+'))
+            elif 31 <= lenobj <= 32 or 21 <= lenobj <= 26:
+                datetime_obj = dateparse.parse_datetime(obj)
+            elif lenobj == 10:
+                datetime_obj = dateparse.parse_date(obj)
+                if not datetime_obj:  # there is an over lapse case
+                    datetime_obj = dateparse.parse_time(obj)
+            elif lenobj == 5 or lenobj == 8 or 10 <= lenobj <= 15:
+                datetime_obj = dateparse.parse_time(obj)
+            if datetime_obj is None:  # a time object is also maybe a valid duration object
+                datetime_obj = dateparse.parse_duration(re.sub(r'^(\-?)\+?:?(\d)', r'\1\2', obj))
+        # if there is a datetime_obj can be decoded from string then return it
+        if datetime_obj is not None:
+            return datetime_obj
+    return obj
+
+
 def dumps(o):
-    return pack(serializable(o))
+    # logger.debug("dumps obj=%s", o)
+    return packb(o, strict_types=True, default=encode_nondefault_object, use_bin_type=True)
 
 
 def loads(s):
     if not isinstance(s, string_types):
-        s = BytesIO(s)
-    return deserializable(unpack(s))
+        s = bytes(s)
+    return unpackb(s, ext_hook=django_ext_hook, object_hook=decode_dict_object, list_hook=decode_list_object, raw=False)
 
 
 register_args = (dumps, loads, 'application/x-django-msgpackpickle', 'binary')
