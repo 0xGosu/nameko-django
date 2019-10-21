@@ -2,37 +2,38 @@ sudo: false
 language: python
 dist: xenial
 python:
-- '2.7'
-- '3.5'
-- '3.6'
-- '3.7'
+  - '2.7'
+  - '3.5'
+  - '3.6'
+  - '3.7'
 addons:
   apt_packages:
-  - libenchant-dev
+    - libenchant-dev
+
 install:
-- pip install tox-travis virtualenv tox python-coveralls coveralls
+  - pip install tox-travis virtualenv tox python-coveralls coveralls
 cache:
   directories:
-  - "$HOME/.cache/pip"
+    - "$HOME/.cache/pip"
 script:
-- QUIET=true tox
+  - QUIET=true tox
 stages:
-- test
-- deploy
+  - test
+  - deploy
 jobs:
   include:
-  - stage: test
-    after_success:
-    - coveralls
-  - stage: deploy
-    python: 2.7
-    script: skip
-    install: skip
-    if: repo = "tranvietanh1991/nameko-django"
-    deploy:
-      provider: pypi
-      user: tranvietanh1991
-      password:
-        secure: ml3I7E9idFy7Yjm6POQOjX4bwobNh23+QhgXfEgOywhF8icbLbB+eRYwVDflC9ekuBiJrWr1aPliXjpWphrGG+z/bawSntv/zERhCjlq3fPXYZnhnGiyZqrfwvq0j67niIBTRUGy51q2Nd9kF5hKivlsLS1XSsodUx2lW4CoeIadLIJIzq9bByVZS3eVGp3e9Nvh598TznWWOu9eKI3lRWEJPNqXQ10K4TmIfQ1y2MyEMw6l8azFKT9raFtKWZO2b92Ie6MXOs+Pf+BuVNZp83FGVxxj6txF43kZseDHyRECfxCj4WgCY78pFfgeBri1lFRX4rKrseMifEx+5YWWbMjn37a456lqxr6UBd15WKr0SHKnZy8eurlPYS8qWWtapnrYCm3W5UAPPsujVFZX25BTTkfcRh9RQxEXzhOXGnpyB1KFBmi/c362c7zOCmzfe3412wZgIBcCchKMrBjoolSxr1rVMUZb4L6I68LLY1Udb0B8Zagyw9GO28PsNm+Dfdgr4DmPn1svXztbWrhsud04C6xFQj9KAdyBN1kgig6kXDUgYmdoSKfUrYi50qzkZ+hwl1EszQy7+Tr7Gs6se0bC+9fYLzNeFiKWHN6YsfVp+4fS1+kTwroZ4m0r9Vo86ZCMO2kfxVI4x4j8t4C9bli1Xzs3GwtXsgwev0U5S14=
-      on:
-        branch: master
+    - stage: test
+      after_success:
+        - coveralls
+    - stage: deploy
+      python: 2.7
+      script: skip
+      install: skip
+      if: repo = "tranvietanh1991/nameko-django"
+      deploy:
+        provider: pypi
+        user: tranvietanh1991
+        password:
+          secure: ml3I7E9idFy7Yjm6POQOjX4bwobNh23+QhgXfEgOywhF8icbLbB+eRYwVDflC9ekuBiJrWr1aPliXjpWphrGG+z/bawSntv/zERhCjlq3fPXYZnhnGiyZqrfwvq0j67niIBTRUGy51q2Nd9kF5hKivlsLS1XSsodUx2lW4CoeIadLIJIzq9bByVZS3eVGp3e9Nvh598TznWWOu9eKI3lRWEJPNqXQ10K4TmIfQ1y2MyEMw6l8azFKT9raFtKWZO2b92Ie6MXOs+Pf+BuVNZp83FGVxxj6txF43kZseDHyRECfxCj4WgCY78pFfgeBri1lFRX4rKrseMifEx+5YWWbMjn37a456lqxr6UBd15WKr0SHKnZy8eurlPYS8qWWtapnrYCm3W5UAPPsujVFZX25BTTkfcRh9RQxEXzhOXGnpyB1KFBmi/c362c7zOCmzfe3412wZgIBcCchKMrBjoolSxr1rVMUZb4L6I68LLY1Udb0B8Zagyw9GO28PsNm+Dfdgr4DmPn1svXztbWrhsud04C6xFQj9KAdyBN1kgig6kXDUgYmdoSKfUrYi50qzkZ+hwl1EszQy7+Tr7Gs6se0bC+9fYLzNeFiKWHN6YsfVp+4fS1+kTwroZ4m0r9Vo86ZCMO2kfxVI4x4j8t4C9bli1Xzs3GwtXsgwev0U5S14=
+        on:
+          branch: master
