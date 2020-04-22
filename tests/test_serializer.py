@@ -35,7 +35,7 @@ def test_simple_list():
         b"", b"a", b"a" * 31, b"a" * 32,
         None, True, False,
         [], [[], ], [[], None, ],
-        {None: 0},
+        {0: None},
         (1 << 23),
     ]
     enc_data = dumps(test_data)
@@ -51,7 +51,7 @@ def test_simple_tuple():
         b"", b"a", b"a" * 31, b"a" * 32,
         None, True, False,
         [], [[], ], [[], None, ],
-        {None: 0},
+        {0: None},
         (1 << 23),
     )
     enc_data = dumps(test_data)
