@@ -46,7 +46,7 @@ setup(
     setup_requires=[
                    ] + pytest_runner,
     test_suite='nose.collector',
-    tests_require=['nose==1.3.7', 'pytest==4.6.6', 'pytest-django==3.6.0'],
+    tests_require=['pyparsing==2.4.2', 'nose==1.3.7', 'pytest==4.6.6', 'pytest-django==3.6.0'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
