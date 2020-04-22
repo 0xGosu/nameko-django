@@ -173,7 +173,8 @@ def dumps(o):
 def loads(s):
     if not isinstance(s, string_types):
         s = bytes(s)
-    r = unpackb(s, ext_hook=django_ext_hook, object_hook=decode_dict_object, list_hook=decode_list_object, raw=False)
+    r = unpackb(s, ext_hook=django_ext_hook, object_hook=decode_dict_object, list_hook=decode_list_object,
+                raw=False, strict_map_key=False)
     if isinstance(r, string_types):
         return decode_single_object(r)
     else:
