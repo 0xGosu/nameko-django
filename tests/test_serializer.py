@@ -22,24 +22,41 @@ from decimal import Decimal
 from aenum import Enum, IntEnum, Constant
 from collections import namedtuple
 from django.utils.timezone import FixedOffset
+from django.utils import timezone
 from nose import tools
 from django.db.models import ObjectDoesNotExist
 
 
 def test_simple_list():
     test_data = [
-        0, 1, 127, 128, 255, 256, 65535, 65536, 4294967295, 4294967296,
-        -1, -32, -33, -128, -129, -32768, -32769, -4294967296, -4294967297,
+        [0, 1, 127, 128, 255, 256, 65535, 65536, 4294967295, 4294967296],
+        [-1, -32, -33, -128, -129, -32768, -32769, -4294967296, -4294967297],
         1.0,
         b"", b"a", b"a" * 31, b"a" * 32,
         None, True, False,
         [], [[], ], [[], None, ],
-        {None: 0},
+        {0: None},
         (1 << 23),
     ]
     enc_data = dumps(test_data)
     dec_data = loads(enc_data)
     assert test_data == dec_data
+
+
+def test_simple_tuple():
+    test_data = (
+        [0, 1, 127, 128, 255, 256, 65535, 65536, 4294967295, 4294967296],
+        (-1, -32, -33, -128, -129, -32768, -32769, -4294967296, -4294967297),
+        1.0,
+        b"", b"a", b"a" * 31, b"a" * 32,
+        None, True, False,
+        [], [[], ], [[], None, ],
+        {0: None},
+        (1 << 23),
+    )
+    enc_data = dumps(test_data)
+    dec_data = loads(enc_data)
+    assert [list(e) if isinstance(e, tuple) else e for e in test_data] == dec_data
 
 
 def test_unicode():
@@ -190,9 +207,22 @@ DJANGO_DEFAULT_SETTING = dict(
     DATABASES=dict(default={'ENGINE': 'django.db.backends.sqlite3'}),
     DEFAULT_INDEX_TABLESPACE='indexes',
     LOGGING={},
+    USE_TZ=True,
+    TIME_ZONE='UTC'
 )
 
 settings.configure(**DJANGO_DEFAULT_SETTING)
+
+
+def test_django_timezone():
+    now = timezone.now()
+    enc_data = dumps(now)
+    dec_data = loads(enc_data)
+    assert now == dec_data
+    today = timezone.localdate()
+    enc_data = dumps(today)
+    dec_data = loads(enc_data)
+    assert today == dec_data
 
 
 def test_django_orm():
@@ -206,7 +236,7 @@ def test_django_orm():
 
 def test_django_orm_queryset():
     from django.contrib.auth.models import User
-    test_user_qs = User.objects.all().filter(last_login__isnull=False, id__gt=1000, date_joined__gt=datetime.now())
+    test_user_qs = User.objects.all().filter(last_login__isnull=False, id__gt=1000, date_joined__gt=timezone.now())
     enc_data = dumps(test_user_qs)
     dec_data = loads(enc_data)
     qs1 = test_user_qs.query
@@ -246,7 +276,7 @@ def test_django_orm_eval_with_db2():
 @pytest.mark.django_db
 def test_django_orm_queryset_with_db():
     from django.contrib.auth.models import User
-    test_user_qs = User.objects.all().filter(last_login__isnull=False, id__gt=1000, date_joined__gt=datetime.now())
+    test_user_qs = User.objects.all().filter(last_login__isnull=False, id__gt=1000, date_joined__gt=timezone.now())
     enc_data = dumps(test_user_qs)
     dec_data = loads(enc_data)
     qs1 = test_user_qs.query
@@ -259,8 +289,8 @@ def test_django_orm_queryset_with_db():
 def test_django_orm_queryset_eval_with_db(admin_user):
     from django.contrib.auth.models import User
     test_user_qs = User.objects.all().filter(id__gte=1,  # last_login__isnull=False,
-                                             date_joined__gt='2018-11-22 00:47:14.263837')
-    qs_string = '(auth.User: {})'.format("id >= 1 and date_joined > '2018-11-22 00:47:14.263837'")
+                                             date_joined__gt='2018-11-22 00:47:14.263837+00:00')
+    qs_string = '(auth.User: {})'.format("id >= 1 and date_joined > '2018-11-22 00:47:14.263837+00:00'")
     logger.debug(qs_string)
     enc_data = dumps(qs_string)
     dec_data = loads(enc_data)
