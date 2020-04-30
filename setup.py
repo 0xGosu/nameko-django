@@ -40,13 +40,13 @@ setup(
     install_requires=[
         'nameko>=2.11.0',
         'django>=1.10',
-        'msgpack>=0.5.0',
+        'msgpack>=1.0.0',
         'aenum>=2.1.0'
     ],
     setup_requires=[
                    ] + pytest_runner,
     test_suite='nose.collector',
-    tests_require=['pyparsing==2.4.2', 'nose==1.3.7', 'pytest==4.6.6', 'pytest-django==3.6.0'],
+    tests_require=['pyparsing==2.4.2', 'nose==1.3.7', 'pytest==4.6.6', 'pytest-django==3.6.0', 'python-box==3.2.0'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',

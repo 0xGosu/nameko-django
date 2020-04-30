@@ -61,6 +61,10 @@ def encode_nondefault_object(obj):
         return
     if hasattr(obj, '_asdict') and callable(obj._asdict):
         return dict(obj._asdict())
+    elif hasattr(obj, 'to_dict') and callable(obj.to_dict):
+        return dict(obj.to_dict())
+    elif hasattr(obj, 'to_list') and callable(obj.to_list):
+        return list(obj.to_list())
     elif isinstance(obj, tuple):  # tuple will be treated as list
         return list(obj)
     elif isinstance(obj, Enum) and hasattr(obj, 'value'):

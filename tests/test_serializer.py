@@ -25,6 +25,7 @@ from django.utils.timezone import FixedOffset
 from django.utils import timezone
 from nose import tools
 from django.db.models import ObjectDoesNotExist
+from box import Box, BoxList
 
 
 def test_simple_list():
@@ -59,6 +60,13 @@ def test_simple_tuple():
     assert [list(e) if isinstance(e, tuple) else e for e in test_data] == dec_data
 
 
+def test_simple_boxlist():
+    test_data = [{'a': 1}, {'b': 2}, {'c': 3}, 'd', 0]
+    enc_data = dumps(BoxList(test_data))
+    dec_data = loads(enc_data)
+    assert test_data == dec_data
+
+
 def test_unicode():
     test_data = ["", "abcd", ["defgh"], "Русский текст"]
     enc_data = dumps(test_data)
@@ -85,6 +93,13 @@ def test_simple_dictionary():
         "Level": 1.5
     }
     enc_data = dumps(test_data)
+    dec_data = loads(enc_data)
+    assert test_data == dec_data
+
+
+def test_simple_boxdict():
+    test_data = {'a': 1, 'b': 2, 'c': 3, 'd': '', 'e': {'e0': 0, 'e1': -1, 'ee': ['e', 'e']}}
+    enc_data = dumps(Box(test_data))
     dec_data = loads(enc_data)
     assert test_data == dec_data
 
