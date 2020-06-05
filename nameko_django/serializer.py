@@ -65,7 +65,9 @@ def encode_nondefault_object(obj):
         return dict(obj.to_dict())
     elif hasattr(obj, 'to_list') and callable(obj.to_list):
         return list(obj.to_list())
-    elif isinstance(obj, tuple):  # tuple will be treated as list
+    elif isinstance(obj, dict):  # handle Box, defaultdict and all variant of dictionary
+        return dict(obj)
+    elif isinstance(obj, (tuple, set, list)):  # tuple,set,list will be treated as list
         return list(obj)
     elif isinstance(obj, Enum) and hasattr(obj, 'value'):
         return obj.value

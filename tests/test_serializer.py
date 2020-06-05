@@ -20,7 +20,7 @@ from nameko_django.serializer import dumps, loads
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 from aenum import Enum, IntEnum, Constant
-from collections import namedtuple
+from collections import namedtuple, defaultdict, OrderedDict
 from django.utils.timezone import FixedOffset
 from django.utils import timezone
 from nose import tools
@@ -95,6 +95,30 @@ def test_simple_dictionary():
     enc_data = dumps(test_data)
     dec_data = loads(enc_data)
     assert test_data == dec_data
+
+
+def test_default_dictionary():
+    test_data = defaultdict(
+        type='Mount',
+        modes=1,
+        rw=True,
+        level=1.5
+    )
+    enc_data = dumps(test_data)
+    dec_data = loads(enc_data)
+    assert dict(test_data) == dec_data
+
+
+def test_orderred_dictionary():
+    test_data = OrderedDict(
+        type='Mount',
+        rw=True,
+        level=1.5
+    )
+    test_data['modes'] = 1
+    enc_data = dumps(test_data)
+    dec_data = loads(enc_data)
+    assert dict(test_data) == dec_data
 
 
 def test_simple_boxdict():
