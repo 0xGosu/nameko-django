@@ -16,12 +16,21 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 from mock import call, patch
 import pytest
-from nameko_django.serializer import dumps, loads
+from nameko_django.serializer import dumps, loads, DEFAULT_DATETIME_TIMEZONE_STRING_FORMAT
+from nameko_django.helper import DjangoORM, DjangoQS
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 from aenum import Enum, IntEnum, Constant
 from collections import namedtuple, defaultdict, OrderedDict
-from django.utils.timezone import FixedOffset
+
+try:
+    # this only available in python3
+    from datetime import timezone as py3timezone
+
+    FixedOffset = (lambda d, name: py3timezone(timedelta(d), name=name))
+except ImportError:
+    from django.utils.timezone import FixedOffset
+
 from django.utils import timezone
 from nose import tools
 from django.db.models import ObjectDoesNotExist
@@ -342,3 +351,29 @@ def test_django_orm_queryset_eval_with_db(admin_user):
     u = dec_data.first()
     assert u.username == admin_user.username
     assert u.email == admin_user.email
+
+
+@pytest.mark.django_db
+def test_django_orm_eval_with_db_using_helper(admin_user):
+    from django.contrib.auth.models import User
+    enc_data = dumps(DjangoORM(User, admin_user.id))
+    dec_data = loads(enc_data)
+    u = dec_data
+    logger.debug("admin_user.id=%s", admin_user.id)
+    assert u.username == admin_user.username
+    assert u.email == admin_user.email
+
+
+@pytest.mark.django_db
+def test_django_orm_queryset_with_db_using_helper():
+    from django.contrib.auth.models import User
+    test_user_qs = User.objects.all().filter(last_login__isnull=False, id__gt=1000,
+                                             date_joined__gt='2018-11-22 00:47:14.263837+00:00')
+    raw_qs = DjangoQS(User, "last_login notnull and id > 1000 and date_joined > '2018-11-22 00:47:14.263837+00:00'")
+    enc_data = dumps(raw_qs)
+    dec_data = loads(enc_data)
+    qs1 = test_user_qs.query
+    qs2 = dec_data.query
+    logger.debug("%s <> %s", qs1, qs2)
+    assert qs1.model._meta.db_table == qs2.model._meta.db_table
+    assert len(test_user_qs) == len(dec_data)
