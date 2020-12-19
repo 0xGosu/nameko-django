@@ -90,7 +90,7 @@ def encode_nondefault_object(obj):
             return ExtType(ExternalType.ORM_INSTANCE, pickle.dumps(obj, -1))
         elif isinstance(obj, QuerySet):
             return ExtType(ExternalType.ORM_QUERYSET, pickle.dumps((obj.model, obj.query), -1))
-    logger.debug("unknown type obj=%s", obj)
+    # logger.debug("unknown type obj=%s", obj)
     return obj
 
 
@@ -111,7 +111,6 @@ def django_ext_hook(code, data):
 
 
 def decode_dict_object(dict_obj):
-    logger.debug("decode dict obj=%s", dict_obj)
     return {
         key: decode_single_object(value)
         for key, value in dict_obj.items()
@@ -119,7 +118,6 @@ def decode_dict_object(dict_obj):
 
 
 def decode_list_object(list_obj):
-    logger.debug("decode list obj=%s", list_obj)
     return [decode_single_object(value) for value in list_obj]
 
 
@@ -139,7 +137,6 @@ from django.apps import apps
 def decode_single_object(obj):
     if obj is None:
         return
-    logger.debug("decode single obj=%s", obj)
     if isinstance(obj, string_types):
         datetime_obj = None
         lenobj = len(obj)
@@ -172,7 +169,6 @@ def decode_single_object(obj):
 
 
 def dumps(o):
-    # logger.debug("dumps obj=%s", o)
     return packb(o, strict_types=True, default=encode_nondefault_object, use_bin_type=True)
 
 
