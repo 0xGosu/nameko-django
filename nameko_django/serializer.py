@@ -141,18 +141,22 @@ def decode_single_object(obj):
         datetime_obj = None
         lenobj = len(obj)
         if lenobj <= 33 and datetime_test_re.match(obj):
-            if lenobj == 33:
-                datetime_obj = dateparse.parse_datetime(obj.replace(' +', '+'))
-            elif 31 <= lenobj <= 32 or 21 <= lenobj <= 26:
-                datetime_obj = dateparse.parse_datetime(obj)
-            elif lenobj == 10:
-                datetime_obj = dateparse.parse_date(obj)
-                if not datetime_obj:  # there is an over lapse case
+            try:
+                if lenobj == 33:
+                    datetime_obj = dateparse.parse_datetime(obj.replace(' +', '+'))
+                elif 31 <= lenobj <= 32 or 21 <= lenobj <= 26:
+                    datetime_obj = dateparse.parse_datetime(obj)
+                elif lenobj == 10:
+                    datetime_obj = dateparse.parse_date(obj)
+                    if not datetime_obj:  # there is an over lapse case
+                        datetime_obj = dateparse.parse_time(obj)
+                elif lenobj == 5 or lenobj == 8 or 10 <= lenobj <= 15:
                     datetime_obj = dateparse.parse_time(obj)
-            elif lenobj == 5 or lenobj == 8 or 10 <= lenobj <= 15:
-                datetime_obj = dateparse.parse_time(obj)
-            if datetime_obj is None:  # a time object is also maybe a valid duration object
-                datetime_obj = dateparse.parse_duration(re.sub(r'^(\-?)\+?:?(\d)', r'\1\2', obj))
+                if datetime_obj is None:  # a time object is also maybe a valid duration object
+                    datetime_obj = dateparse.parse_duration(re.sub(r'^(\-?)\+?:?(\d)', r'\1\2', obj))
+            except ValueError:
+                # fix a bug where the obj may not be an actual datetime string but mistakenly recognized as one
+                datetime_obj = None
         # if there is a datetime_obj can be decoded from string then return it
         if datetime_obj is not None:
             return datetime_obj
